@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>先AI辅助批改再人工批改</title>
+    <!-- Font Awesome 图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        /* ===== 全局样式（沿用原有，新增上传相关） ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, 'Helvetica Neue', sans-serif;
+            background: #f4f7fc;
+            padding: 40px 20px;
+            color: #1e293b;
+        }
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        /* ===== 页面标题 ===== */
+        .page-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px 20px 20px;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            border-radius: 24px;
+            color: #fff;
+            box-shadow: 0 12px 40px rgba(37, 99, 235, 0.30);
+        }
+        .page-header h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        .page-header h1 i {
+            font-size: 2.2rem;
+            opacity: 0.9;
+        }
+        .page-header p {
+            margin-top: 10px;
+            opacity: 0.85;
+            font-size: 1.05rem;
+        }
+        .page-header .badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.20);
+            padding: 4px 18px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            backdrop-filter: blur(4px);
+        }
+
+        /* ===== 新增：示例图片卡片（置于标题下方） ===== */
+        .example-image-card {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 24px 30px 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(37, 99, 235, 0.06);
+        }
+        .example-image-card .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .example-image-card .card-title i {
+            color: #2563eb;
+        }
+        .example-image-wrapper {
+            width: 100%;
+            height: 220px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: #475569;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            overflow: hidden;
+            border: 2px dashed #94a3b8;
+            transition: border-color 0.3s;
+        }
+        .example-image-wrapper.has-image {
+            border: 2px solid #22c55e;
+        }
+        .example-image-wrapper .placeholder-text {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.7);
+            padding: 12px 24px;
+            border-radius: 12px;
+            backdrop-filter: blur(4px);
+        }
+        .example-image-wrapper .placeholder-text i {
+            font-size: 2.5rem;
+            color: #64748b;
+        }
+        .example-image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .example-upload-area {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 12px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .upload-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #eef2ff;
+            color: #4338ca;
+            padding: 6px 18px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px dashed #818cf8;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .upload-btn:hover {
+            background: #e0e7ff;
+            border-color: #6366f1;
+        }
+        .upload-btn input[type="file"] {
+            display: none;
+        }
+        .file-status {
+            font-size: 0.8rem;
+            color: #64748b;
+            background: #f8fafc;
+            padding: 2px 14px;
+            border-radius: 40px;
+            border: 1px solid #e2e8f0;
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .file-status i {
+            margin-right: 4px;
+            color: #22c55e;
+        }
+
+        /* ===== 步骤卡片（与原有保持一致） ===== */
+        .step-card {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 28px 30px 34px;
+            margin-bottom: 38px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(37, 99, 235, 0.06);
+            position: relative;
+            transition: box-shadow 0.25s ease;
+        }
+        .step-card:hover {
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.07);
+        }
+        .step-card::after {
+            content: '';
+            position: absolute;
+            bottom: -26px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 24px;
+            background: linear-gradient(to bottom, #cbd5e1, transparent);
+        }
+        .step-card:last-child::after {
+            display: none;
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2563eb, #4f46e5);
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.30);
+        }
+        .step-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #0f172a;
+        }
+        .step-title i {
+            color: #2563eb;
+            margin-right: 8px;
+        }
+        .step-desc {
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-left: auto;
+            background: #f1f5f9;
+            padding: 4px 16px;
+            border-radius: 40px;
+        }
+
+        .step-image {
+            width: 100%;
+            height: 180px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #fff;
+            margin-bottom: 12px;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            background-color: #e2e8f0; /* fallback */
+        }
+        .step-image .image-label {
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(6px);
+            padding: 8px 24px;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .step-image .image-label i {
+            font-size: 1.3rem;
+        }
+        /* 步骤图片配色（保留） */
+        .step-img-1 { background: linear-gradient(135deg, #f59e0b, #f97316); }
+        .step-img-2 { background: linear-gradient(135deg, #3b82f6, #6366f1); }
+        .step-img-3 { background: linear-gradient(135deg, #8b5cf6, #d946ef); }
+        .step-img-4 { background: linear-gradient(135deg, #06b6d4, #3b82f6); }
+        .step-img-5 { background: linear-gradient(135deg, #10b981, #14b8a6); }
+        .step-img-6 { background: linear-gradient(135deg, #f43f5e, #ec4899); }
+
+        /* ===== 视频播放器 ===== */
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #0b1120;
+            aspect-ratio: 16 / 9;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            cursor: pointer;
+            transition: box-shadow 0.25s ease;
+        }
+        .video-wrapper:hover {
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+        }
+        .video-wrapper video {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+            background: #0b1120;
+        }
+        .play-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.20);
+            backdrop-filter: blur(2px);
+            transition: background 0.3s ease, opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .video-wrapper:hover .play-overlay {
+            background: rgba(0, 0, 0, 0.30);
+        }
+        .play-overlay .play-btn {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #1e293b;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.30);
+            transition: transform 0.2s ease;
+            pointer-events: none;
+            border: 2px solid rgba(255, 255, 255, 0.30);
+        }
+        .video-wrapper:hover .play-overlay .play-btn {
+            transform: scale(1.05);
+            background: #ffffff;
+        }
+        .video-wrapper.playing .play-overlay {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .video-hint {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        /* ===== 图片上传区域（用于步骤内） ===== */
+        .step-upload-area {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* ===== 批改历史列表（保留） ===== */
+        .history-list {
+            margin-top: 16px;
+            border-radius: 14px;
+            border: 1px solid #e9edf4;
+            background: #fafbfd;
+            overflow: hidden;
+        }
+        .history-list .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: #f1f5f9;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #334155;
+            border-bottom: 1px solid #e9edf4;
+        }
+        .history-list .list-header span i {
+            margin-right: 8px;
+            color: #2563eb;
+        }
+        .history-list .list-header .count {
+            background: #e2e8f0;
+            padding: 2px 14px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 4px;
+            padding: 12px 16px;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+        .history-grid .item {
+            background: #ffffff;
+            border: 1px solid #eef2f6;
+            border-radius: 8px;
+            padding: 6px 4px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #475569;
+        }
+        .history-grid .item:hover {
+            background: #eef2ff;
+            border-color: #818cf8;
+        }
+        .history-grid::-webkit-scrollbar {
+            width: 5px;
+        }
+        .history-grid::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        .history-grid::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 768px) {
+            body { padding: 20px 12px; }
+            .page-header h1 { font-size: 1.6rem; }
+            .step-card { padding: 20px 16px 24px; }
+            .step-title { font-size: 1.15rem; }
+            .step-number { width: 36px; height: 36px; font-size: 1rem; }
+            .step-image { height: 130px; }
+            .play-overlay .play-btn { width: 56px; height: 56px; font-size: 1.5rem; }
+            .example-image-wrapper { height: 160px; }
+        }
+        @media (max-width: 480px) {
+            .step-image { height: 100px; }
+            .example-image-wrapper { height: 120px; }
+            .play-overlay .play-btn { width: 44px; height: 44px; font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ===== 页眉 ===== -->
+    <header class="page-header">
+        <h1>
+            <i class="fas fa-robot"></i>
+            先AI辅助批改再人工批改
+            <i class="fas fa-pen-fancy"></i>
+        </h1>
+        <p>点击每个步骤下方的视频，观看对应操作演示</p>
+        <span class="badge"><i class="fas fa-play-circle"></i> 共 5 个步骤 </span>
+    </header>
+
+    <!-- ===== 新增：示例图片卡片（第一个板块） ===== -->
+        <div class="example-image-wrapper" id="exampleImageWrapper">
+            <div class="placeholder-text">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <span>点击下方按钮上传示例图片</span>
+            </div>
+        </div>
+        <div class="example-upload-area">
+            <span class="file-status" id="exampleImageStatus"><i class="fas fa-info-circle"></i> 未上传</span>
+            <label class="upload-btn" for="exampleImageUpload">
+                <i class="fas fa-upload"></i> 上传图片
+                <input type="file" id="exampleImageUpload" accept="image/*" />
+            </label>
+        </div>
+    </div>
+
+    <!-- ===== 步骤 1：查看驳回列表（原“批改历史”但改为第一步） ===== -->
+    <div class="step-card" id="step-1">
+        <div class="step-header">
+            <span class="step-number">1</span>
+            <h3 class="step-title"><i class="fas fa-history"></i>批改历史</h3>
+            <span class="step-desc"><i class="far fa-clock"></i> 约 2m</span>
+        </div>
+        <div class="step-image step-img-6" id="stepImage1">
+            <span class="image-label"><i class="fas fa-image"></i> 步骤示意图 · 批改历史</span>
+        </div>
+        <!-- 图片上传 -->
+        <div class="step-upload-area">
+            <span class="file-status" id="stepImageStatus1"><i class="fas fa-info-circle"></i> 默认图片</span>
+            <label class="upload-btn" for="stepImageUpload1">
+                <i class="fas fa-upload"></i> 更换图片
+                <input type="file" id="stepImageUpload1" accept="image/*" data-target="stepImage1" data-status="stepImageStatus1" />
+            </label>
+        </div>
+        <!-- 视频 -->
+        <div class="video-wrapper" style="margin-top:12px;">
+            <video preload="metadata" playsinline>
+                <source src="https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_2mb.mp4" type="video/mp4" />
+            </video>
+            <div class="play-overlay">
+                <div class="play-btn"><i class="fas fa-play"></i></div>
+            </div>
+        </div>
+        <div class="video-hint"><i class="fas fa-hand-pointer"></i> 点击视频播放 / 暂停</div>
+        <!-- 视频上传 -->
+        <div class="step-upload-area">
+            <span class="file-status" id="videoStatus1"><i class="fas fa-info-circle"></i> 默认视频</span>
+            <label class="upload-btn" for="videoUpload1">
+                <i class="fas fa-upload"></i> 上传视频
+                <input type="file" id="videoUpload1" accept="video/*" data-target="video1" data-status="videoStatus1" />
+            </label>
+        </div>
+    </div>
+
+    <!-- ===== 步骤 2：检查AI批改 ===== -->
+    <div class="step-card" id="step-2">
+        <div class="step-header">
+            <span class="step-number">2</span>
+            <h3 class="step-title"><i class="fas fa-brain"></i>检查AI批改</h3>
+            <span class="step-desc"><i class="far fa-clock"></i> 约 1m 10s</span>
+        </div>
+        <div class="step-image step-img-4" id="stepImage2">
+            <span class="image-label"><i class="fas fa-image"></i> 步骤示意图 · AI批改检查</span>
+        </div>
+        <div class="step-upload-area">
+            <span class="file-status" id="stepImageStatus2"><i class="fas fa-info-circle"></i> 默认图片</span>
+            <label class="upload-btn" for="stepImageUpload2">
+                <i class="fas fa-upload"></i> 更换图片
+                <input type="file" id="stepImageUpload2" accept="image/*" data-target="stepImage2" data-status="stepImageStatus2" />
+            </label>
+        </div>
+        <div class="video-wrapper">
+            <video preload="metadata" playsinline>
+                <source src="https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_10mb.mp4" type="video/mp4" />
+            </video>
+            <div class="play-overlay">
+                <div class="play-btn"><i class="fas fa-play"></i></div>
+            </div>
+        </div>
+        <div class="video-hint"><i class="fas fa-hand-pointer"></i> 点击视频播放 / 暂停</div>
+        <div class="step-upload-area">
+            <span class="file-status" id="videoStatus2"><i class="fas fa-info-circle"></i> 默认视频</span>
+            <label class="upload-btn" for="videoUpload2">
+                <i class="fas fa-upload"></i> 上传视频
+                <input type="file" id="videoUpload2" accept="video/*" data-target="video2" data-status="videoStatus2" />
+            </label>
+        </div>
+    </div>
+
+    <!-- ===== 步骤 3：评估旁批 ===== -->
+    <div class="step-card" id="step-3">
+        <div class="step-header">
+            <span class="step-number">3</span>
+            <h3 class="step-title"><i class="fas fa-star"></i>评估旁批</h3>
+            <span class="step-desc"><i class="far fa-clock"></i> 约 55s</span>
+        </div>
+        <div class="step-image step-img-3" id="stepImage3">
+            <span class="image-label"><i class="fas fa-image"></i> 步骤示意图 · 旁批评估</span>
+        </div>
+        <div class="step-upload-area">
+            <span class="file-status" id="stepImageStatus3"><i class="fas fa-info-circle"></i> 默认图片</span>
+            <label class="upload-btn" for="stepImageUpload3">
+                <i class="fas fa-upload"></i> 更换图片
+                <input type="file" id="stepImageUpload3" accept="image/*" data-target="stepImage3" data-status="stepImageStatus3" />
+            </label>
+        </div>
+        <div class="video-wrapper">
+            <video preload="metadata" playsinline>
+                <source src="https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_5mb.mp4" type="video/mp4" />
+            </video>
+            <div class="play-overlay">
+                <div class="play-btn"><i class="fas fa-play"></i></div>
+            </div>
+        </div>
+        <div class="video-hint"><i class="fas fa-hand-pointer"></i> 点击视频播放 / 暂停</div>
+        <div class="step-upload-area">
+            <span class="file-status" id="videoStatus3"><i class="fas fa-info-circle"></i> 默认视频</span>
+            <label class="upload-btn" for="videoUpload3">
+                <i class="fas fa-upload"></i> 上传视频
+                <input type="file" id="videoUpload3" accept="video/*" data-target="video3" data-status="videoStatus3" />
+            </label>
+        </div>
+    </div>
+
+    <!-- ===== 步骤 4：确认必评项 ===== -->
+    <div class="step-card" id="step-4">
+        <div class="step-header">
+            <span class="step-number">4</span>
+            <h3 class="step-title"><i class="fas fa-check-double"></i>确认必评项</h3>
+            <span class="step-desc"><i class="far fa-clock"></i> 约 1m 20s</span>
+        </div>
+        <div class="step-image step-img-2" id="stepImage4">
+            <span class="image-label"><i class="fas fa-image"></i> 步骤示意图 · 确认必评</span>
+        </div>
+        <div class="step-upload-area">
+            <span class="file-status" id="stepImageStatus4"><i class="fas fa-info-circle"></i> 默认图片</span>
+            <label class="upload-btn" for="stepImageUpload4">
+                <i class="fas fa-upload"></i> 更换图片
+                <input type="file" id="stepImageUpload4" accept="image/*" data-target="stepImage4" data-status="stepImageStatus4" />
+            </label>
+        </div>
+        <div class="video-wrapper">
+            <video preload="metadata" playsinline>
+                <source src="https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_2mb.mp4" type="video/mp4" />
+            </video>
+            <div class="play-overlay">
+                <div class="play-btn"><i class="fas fa-play"></i></div>
+            </div>
+        </div>
+        <div class="video-hint"><i class="fas fa-hand-pointer"></i> 点击视频播放 / 暂停</div>
+        <div class="step-upload-area">
+            <span class="file-status" id="videoStatus4"><i class="fas fa-info-circle"></i> 默认视频</span>
+            <label class="upload-btn" for="videoUpload4">
+                <i class="fas fa-upload"></i> 上传视频
+                <input type="file" id="videoUpload4" accept="video/*" data-target="video4" data-status="videoStatus4" />
+            </label>
+        </div>
+    </div>
+
+    <!-- ===== 步骤 5：添加表情贴纸 ===== -->
+    <div class="step-card" id="step-5">
+        <div class="step-header">
+            <span class="step-number">5</span>
+            <h3 class="step-title"><i class="fas fa-smile-wink"></i>添加表情贴纸</h3>
+            <span class="step-desc"><i class="far fa-clock"></i> 约 45s</span>
+        </div>
+        <div class="step-image step-img-1" id="stepImage5">
+            <span class="image-label"><i class="fas fa-image"></i> 步骤示意图 · 添加贴纸</span>
+        </div>
+        <div class="step-upload-area">
+            <span class="file-status" id="stepImageStatus5"><i class="fas fa-info-circle"></i> 默认图片</span>
+            <label class="upload-btn" for="stepImageUpload5">
+                <i class="fas fa-upload"></i> 更换图片
+                <input type="file" id="stepImageUpload5" accept="image/*" data-target="stepImage5" data-status="stepImageStatus5" />
+            </label>
+        </div>
+        <div class="video-wrapper">
+            <video preload="metadata" playsinline>
+                <source src="https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4" type="video/mp4" />
+            </video>
+            <div class="play-overlay">
+                <div class="play-btn"><i class="fas fa-play"></i></div>
+            </div>
+        </div>
+        <div class="video-hint"><i class="fas fa-hand-pointer"></i> 点击视频播放 / 暂停</div>
+        <div class="step-upload-area">
+            <span class="file-status" id="videoStatus5"><i class="fas fa-info-circle"></i> 默认视频</span>
+            <label class="upload-btn" for="videoUpload5">
+                <i class="fas fa-upload"></i> 上传视频
+                <input type="file" id="videoUpload5" accept="video/*" data-target="video5" data-status="videoStatus5" />
+            </label>
+        </div>
+    </div>
+
+    <!-- ===== 页脚 ===== -->
+    <footer style="text-align:center; margin-top:40px; color:#94a3b8; font-size:0.85rem; border-top:1px solid #e9edf4; padding-top:24px;">
+        <i class="fas fa-video" style="margin-right:6px;"></i>
+        点击视频播放/暂停 · 图片/视频均可本地上传替换
+        <span style="display:inline-block; margin:0 12px;">|</span>
+        <i class="fas fa-edit"></i> 完全自定义
+    </footer>
+
+</div>
+
+<script>
+    (function() {
+        'use strict';
+
+        // =============================================
+        // 1. 视频播放控制（与之前相同，增加对新视频的支持）
+        // =============================================
+        const wrappers = document.querySelectorAll('.video-wrapper');
+        wrappers.forEach(wrapper => {
+            const video = wrapper.querySelector('video');
+            if (!video) return;
+            wrapper.addEventListener('click', function(e) {
+                if (video.paused) {
+                    video.play().catch(() => {});
+                } else {
+                    video.pause();
+                }
+            });
+            video.addEventListener('play', function() {
+                wrapper.classList.add('playing');
+                const btn = wrapper.querySelector('.play-btn i');
+                if (btn) btn.className = 'fas fa-pause';
+            });
+            video.addEventListener('pause', function() {
+                wrapper.classList.remove('playing');
+                const btn = wrapper.querySelector('.play-btn i');
+                if (btn) btn.className = 'fas fa-play';
+            });
+            video.addEventListener('ended', function() {
+                wrapper.classList.remove('playing');
+                const btn = wrapper.querySelector('.play-btn i');
+                if (btn) btn.className = 'fas fa-play';
+            });
+            video.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            // 错误处理
+            video.addEventListener('error', function() {
+                const overlay = wrapper.querySelector('.play-overlay');
+                if (overlay) {
+                    overlay.innerHTML = `
+                        <div style="background:rgba(220,38,38,0.85);color:#fff;padding:12px 24px;border-radius:12px;font-size:0.9rem;display:flex;align-items:center;gap:10px;">
+                            <i class="fas fa-exclamation-triangle"></i> 视频加载失败
+                        </div>
+                    `;
+                }
+            });
+        });
+
+        // =============================================
+        // 2. 图片上传功能（示例图片 + 步骤图片）
+        // =============================================
+        // 通用图片上传处理
+        function handleImageUpload(inputElement, targetId, statusId) {
+            const file = inputElement.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                alert('请选择图片文件');
+                inputElement.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const target = document.getElementById(targetId);
+                if (!target) return;
+                // 清除内部内容，设置为背景图或img
+                // 我们使用背景图方式，保持原有样式
+                target.style.backgroundImage = `url(${e.target.result})`;
+                target.style.backgroundSize = 'cover';
+                target.style.backgroundPosition = 'center';
+                // 隐藏文字标签（如果有），可以保留但背景覆盖
+                const label = target.querySelector('.image-label');
+                if (label) label.style.display = 'none';
+                // 更新状态
+                const status = document.getElementById(statusId);
+                if (status) {
+                    const name = file.name.length > 18 ? file.name.substring(0, 16) + '...' : file.name;
+                    status.innerHTML = `<i class="fas fa-check-circle" style="color:#22c55e;"></i> ${name}`;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 示例图片上传
+        const exampleUpload = document.getElementById('exampleImageUpload');
+        if (exampleUpload) {
+            exampleUpload.addEventListener('change', function() {
+                handleImageUpload(this, 'exampleImageWrapper', 'exampleImageStatus');
+                // 添加has-image类
+                const wrapper = document.getElementById('exampleImageWrapper');
+                if (wrapper) wrapper.classList.add('has-image');
+                // 隐藏占位文字
+                const placeholder = wrapper.querySelector('.placeholder-text');
+                if (placeholder) placeholder.style.display = 'none';
+            });
+        }
+
+        // 所有步骤图片上传
+        const stepImageInputs = document.querySelectorAll('input[type="file"][data-target]');
+        stepImageInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                const targetId = this.getAttribute('data-target');
+                const statusId = this.getAttribute('data-status');
+                if (targetId && statusId) {
+                    handleImageUpload(this, targetId, statusId);
+                }
+            });
+        });
+
+        // =============================================
+        // 3. 视频上传功能（替换视频源）
+        // =============================================
+        const videoInputs = document.querySelectorAll('input[type="file"][data-target]');
+        // 只处理以 'video' 开头的 data-target（视频上传）
+        videoInputs.forEach(input => {
+            const targetId = input.getAttribute('data-target');
+            if (!targetId || !targetId.startsWith('video')) return;
+            const statusId = input.getAttribute('data-status');
+            input.addEventListener('change', function() {
+                const file = this.files[0];
+                if (!file) return;
+                if (!file.type.startsWith('video/')) {
+                    alert('请选择视频文件');
+                    this.value = '';
+                    return;
+                }
+                // 找到对应的视频元素（在同一个step-card内）
+                const card = this.closest('.step-card');
+                if (!card) return;
+                const video = card.querySelector('video');
+                if (!video) return;
+                const url = URL.createObjectURL(file);
+                video.src = url;
+                video.load();
+                video.play().catch(() => {});
+                // 更新状态
+                const status = document.getElementById(statusId);
+                if (status) {
+                    const name = file.name.length > 18 ? file.name.substring(0, 16) + '...' : file.name;
+                    status.innerHTML = `<i class="fas fa-check-circle" style="color:#22c55e;"></i> ${name}`;
+                }
+                // 清理旧URL（可选）
+            });
+        });
+
+    })();
+</script>
+
+</body>
+</html>
